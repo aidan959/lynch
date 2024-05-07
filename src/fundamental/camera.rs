@@ -1,6 +1,6 @@
 use glam::{Mat4, Quat, Vec3, Vec3A};
 
-struct Camera {
+pub struct Camera {
     view: Mat4,
     projection: Mat4,
     view_projection: Mat4,
