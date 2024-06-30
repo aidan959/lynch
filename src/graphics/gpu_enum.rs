@@ -608,7 +608,7 @@ pub(crate) mod render_pass_operation {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[allow(non_camel_case_types)]
-pub enum ResourceState {
+pub(crate) enum ResourceState {
     RESOURCE_STATE_UNDEFINED = 0,
     RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER = 0x1,
     RESOURCE_STATE_INDEX_BUFFER = 0x2,
@@ -630,6 +630,27 @@ pub enum ResourceState {
     RESOURCE_STATE_SHADING_RATE_SOURCE = 0x8000,
 }
 #[deny(non_camel_case_types)]
+
+impl std::ops::BitOr for ResourceState {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        unsafe {
+            std::mem::transmute(self as u16 | rhs as u16)
+        }
+    }
+}
+
+
+impl std::ops::BitAnd for ResourceState {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        unsafe {
+            std::mem::transmute(self as u16 & rhs as u16)
+        }
+    }
+}
 
 impl ResourceState {
     pub fn from_bits(bits: u32) -> ResourceState {
@@ -656,4 +677,7 @@ impl ResourceState {
             _ => ResourceState::RESOURCE_STATE_UNDEFINED, // Handle unknown bits
         }
     }
+    pub fn contains(&self, other: ResourceState) -> bool {
+        (*self & other) == other
+    }   
 }

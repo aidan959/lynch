@@ -1,13 +1,12 @@
 use ash::vk;
-
-use super::{color_write_enabled, fill_mode, pipeline_stage, render_pass_operation, render_pass_type, resource_usage_type, texture_type, vertex_component_format, vertex_input_rate};
+use super::{color_write_enabled, fill_mode, pipeline_stage, queue_type, render_pass_operation, render_pass_type, resource_deletion_type, resource_usage_type, texture_type, vertex_component_format, vertex_input_rate, ResourceState};
 
 const K_INVALID_INDEX: u32 = 0xffffffff;
 
-type ResourceHandle = u32;
+pub(crate) type ResourceHandle = u32;
 
 #[derive(Debug, Copy, Clone)]
-struct BufferHandle {
+pub(crate) struct BufferHandle {
     index: ResourceHandle,
 }
 impl Default for BufferHandle {
@@ -20,7 +19,7 @@ impl Default for BufferHandle {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct TextureHandle {
+pub(crate) struct TextureHandle {
     index: ResourceHandle,
 }
 impl Default for TextureHandle{
@@ -33,12 +32,21 @@ impl Default for TextureHandle{
 }
 
 #[derive(Debug, Copy, Clone)]
-struct ShaderStateHandle {
+pub(crate) struct ShaderStateHandle {
     index: ResourceHandle,
 }
 
+impl Default for ShaderStateHandle {
+    #[inline]
+    fn default() -> Self {
+        ShaderStateHandle {
+            index: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
-struct SamplerHandle {
+pub(crate) struct SamplerHandle {
     index: ResourceHandle,
 }
 impl  Default for SamplerHandle{
@@ -50,7 +58,7 @@ impl  Default for SamplerHandle{
     }
 }
 #[derive(Debug, Copy, Clone)]
-struct DescriptorSetLayoutHandle {
+pub(crate) struct DescriptorSetLayoutHandle {
     index: ResourceHandle,
 }
 impl Default for DescriptorSetLayoutHandle{
@@ -63,17 +71,26 @@ impl Default for DescriptorSetLayoutHandle{
 }
 
 #[derive(Debug, Copy, Clone)]
-struct DescriptorSetHandle {
+pub(crate) struct DescriptorSetHandle {
     index: ResourceHandle,
 }
 
 #[derive(Debug, Copy, Clone)]
-struct PipelineHandle {
+pub(crate) struct PipelineHandle {
     index: ResourceHandle,
 }
 
+impl Default for PipelineHandle{
+    #[inline]
+    fn default() -> Self {
+        PipelineHandle {
+            index: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
-struct RenderPassHandle {
+pub(crate) struct RenderPassHandle {
     index: ResourceHandle,
 }
 
@@ -95,12 +112,14 @@ const K_MAX_DESCRIPTORS_PER_SET: usize = 16;        // Maximum list elements for
 const K_MAX_VERTEX_STREAMS: usize = 16;
 const K_MAX_VERTEX_ATTRIBUTES: usize = 16;
 
+pub(crate) const K_MAX_SWAPCHAIN_IMAGES: usize = 3;
+
 const K_SUBMIT_HEADER_SENTINEL: u32 = 0xfefeb7ba;
 const K_MAX_RESOURCE_DELETIONS: u32 = 64;
 
 
 #[derive(Debug, Copy, Clone)]
-struct Rect2D {
+pub(crate) struct Rect2D {
     x: f32,
     y: f32,
     width: f32,
@@ -119,7 +138,7 @@ impl Default for Rect2D {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct Rect2DInt {
+pub(crate) struct Rect2DInt {
     x: i16,
     y: i16,
     width: u16,
@@ -138,7 +157,7 @@ impl Default for Rect2DInt {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct Viewport {
+pub(crate) struct Viewport {
     rect: Rect2DInt,
     min_depth: f32,
     max_depth: f32,
@@ -155,7 +174,7 @@ impl Default for Viewport {
 }
 
 #[derive(Debug, Clone)]
-struct ViewportState {
+pub(crate) struct ViewportState {
     num_viewports: u32,
     num_scissors: u32,
     viewport: Option<Vec<Viewport>>,
@@ -174,7 +193,7 @@ impl Default for ViewportState {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct StencilOperationState {
+pub(crate) struct StencilOperationState {
     fail: vk::StencilOp,
     pass: vk::StencilOp,
     depth_fail: vk::StencilOp,
@@ -199,7 +218,7 @@ impl Default for StencilOperationState {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct DepthStencilCreation {
+pub(crate) struct DepthStencilCreation {
     front: StencilOperationState,
     back: StencilOperationState,
     depth_comparison: vk::CompareOp,
@@ -232,7 +251,7 @@ impl DepthStencilCreation {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct BlendState {
+pub(crate) struct BlendState {
     source_color: vk::BlendFactor,
     destination_color: vk::BlendFactor,
     color_operation: vk::BlendOp,
@@ -267,6 +286,7 @@ impl BlendState {
         self.source_color = source_color;
         self.destination_color = destination_color;
         self.color_operation = color_operation;
+        self.blend_enabled = true;
         self
     }
 
@@ -274,6 +294,7 @@ impl BlendState {
         self.source_alpha = source_alpha;
         self.destination_alpha = destination_alpha;
         self.alpha_operation = alpha_operation;
+        self.separate_blend = true;
         self
     }
 
@@ -284,7 +305,7 @@ impl BlendState {
 }
 
 #[derive(Debug, Clone)]
-struct BlendStateCreation {
+pub(crate) struct BlendStateCreation {
     blend_states: [BlendState; K_MAX_IMAGE_OUTPUTS as usize],
     active_states: u32,
 }
@@ -312,7 +333,7 @@ impl BlendStateCreation {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct RasterizationCreation {
+pub(crate) struct RasterizationCreation {
     cull_mode: vk::CullModeFlags,
     front: vk::FrontFace,
     fill: fill_mode::Enum,
@@ -329,7 +350,7 @@ impl Default for RasterizationCreation {
 }
 
 #[derive(Debug, Clone)]
-struct BufferCreation {
+pub(crate) struct BufferCreation {
     type_flags: vk::BufferUsageFlags,
     usage: resource_usage_type::Enum,
     size: u32,
@@ -351,8 +372,6 @@ impl Default for BufferCreation {
 
 impl BufferCreation {
     fn reset(&mut self) -> &mut Self {
-        self.type_flags = vk::BufferUsageFlags::empty();
-        self.usage = resource_usage_type::Enum::Immutable;
         self.size = 0;
         self.initial_data = None;
         self.name = None;
@@ -378,7 +397,7 @@ impl BufferCreation {
 }
 
 #[derive(Debug, Clone)]
-struct TextureCreation {
+pub(crate) struct TextureCreation {
     initial_data: Option<*mut std::ffi::c_void>,
     width: u16,
     height: u16,
@@ -437,7 +456,7 @@ impl TextureCreation {
     }
 }
 
-pub struct SamplerCreation<'a> {
+pub(crate) struct SamplerCreation<'a> {
     min_filter: vk::Filter,
     mag_filter: vk::Filter,
     mip_filter: vk::SamplerMipmapMode,
@@ -492,7 +511,7 @@ impl<'a> SamplerCreation<'a> {
         self
     }
 }
-pub struct ShaderStage<'a> {
+pub(crate) struct ShaderStage<'a> {
     code: Option<&'a [u8]>,
     code_size: u32,
     ty: vk::ShaderStageFlags,
@@ -519,7 +538,7 @@ impl<'a> ShaderStage<'a> {
     }
 }
 
-pub struct ShaderStateCreation<'a> {
+pub(crate) struct ShaderStateCreation<'a> {
     stages: [ShaderStage<'a>; K_MAX_SHADER_STAGES], 
 
     name: Option<&'a str>,
@@ -565,14 +584,14 @@ impl<'a> ShaderStateCreation<'a> {
     }
 }
 
-pub struct DescriptorSetLayoutCreation {
+pub(crate) struct DescriptorSetLayoutCreation {
     bindings: [Binding; K_MAX_DESCRIPTORS_PER_SET],
     num_bindings: u32,
     set_index: u32,
     name: Option<&'static str>,
 }
 
-pub struct Binding {
+pub(crate) struct Binding {
     ty: Option<vk::DescriptorType>,
     start: u16,
     count: u16,
@@ -627,7 +646,7 @@ impl Default for Binding {
     }
 }
 
-pub struct DescriptorSetCreation<'a> {
+pub(crate) struct DescriptorSetCreation<'a> {
     resources: [ResourceHandle; K_MAX_DESCRIPTORS_PER_SET], 
     samplers: [SamplerHandle; K_MAX_DESCRIPTORS_PER_SET],   
     bindings: [u16; K_MAX_DESCRIPTORS_PER_SET],
@@ -703,7 +722,7 @@ impl Default for DescriptorSetCreation<'_> {
         DescriptorSetCreation::new()
     }
 }
-pub struct DescriptorSetUpdate {
+pub(crate) struct DescriptorSetUpdate {
     descriptor_set: DescriptorSetHandle,
 
     frame_issued: u32,
@@ -720,7 +739,7 @@ impl DescriptorSetUpdate {
 
 
 
-pub struct VertexAttribute {
+pub(crate) struct VertexAttribute {
     location: u16,
     binding: u16,
     offset: u32,
@@ -740,7 +759,7 @@ impl VertexAttribute {
 
 
 
-pub struct VertexStream {
+pub(crate) struct VertexStream {
     binding: u16,
     stride: u16,
     input_rate: vertex_input_rate::Enum,
@@ -756,7 +775,7 @@ impl VertexStream {
     }
 }
 
-pub struct VertexInputCreation {
+pub(crate) struct VertexInputCreation {
     num_vertex_streams: u32,
     num_vertex_attributes: u32,
 
@@ -801,7 +820,7 @@ impl VertexInputCreation {
 
 
 
-pub struct RenderPassOutput {
+pub(crate) struct RenderPassOutput {
     color_formats: [vk::Format; K_MAX_IMAGE_OUTPUTS], 
     depth_stencil_format: vk::Format,
     num_color_formats: u32,
@@ -809,6 +828,13 @@ pub struct RenderPassOutput {
     color_operation: render_pass_operation::Enum,
     depth_operation: render_pass_operation::Enum,
     stencil_operation: render_pass_operation::Enum,
+}
+
+impl Default for RenderPassOutput {
+    #[inline]
+    fn default() -> Self {
+        RenderPassOutput::new()
+    }
 }
 
 impl RenderPassOutput {
@@ -854,7 +880,7 @@ impl RenderPassOutput {
     }
 }
 
-pub struct RenderPassCreation<'a> {
+pub(crate) struct RenderPassCreation<'a> {
     num_render_targets: u16,
     ty: render_pass_type::Enum,
 
@@ -893,10 +919,10 @@ impl<'a> RenderPassCreation<'a> {
         self.num_render_targets = 0;
         self.ty = render_pass_type::Enum::Geometry;
         self.output_textures = [TextureHandle::default(); K_MAX_IMAGE_OUTPUTS];
-        self.depth_stencil_texture = TextureHandle::default();
+        self.depth_stencil_texture = K_INVALID_TEXTURE;
         self.scale_x = 1.0;
         self.scale_y = 1.0;
-        self.resize = 1;
+        self.resize = 0;
         self.color_operation = render_pass_operation::Enum::DontCare;
         self.depth_operation = render_pass_operation::Enum::DontCare;
         self.stencil_operation = render_pass_operation::Enum::DontCare;
@@ -942,18 +968,18 @@ impl<'a> RenderPassCreation<'a> {
     }
 }
 
-pub struct PipelineCreation<'a> {
+pub(crate) struct PipelineCreation<'a> {
     rasterization: RasterizationCreation,
     depth_stencil: DepthStencilCreation,
     blend_state: BlendStateCreation,
     vertex_input: VertexInputCreation,
-    shaders: ShaderStateCreation,
+    shaders: ShaderStateCreation<'a>,
     render_pass: RenderPassOutput,
     descriptor_set_layout: [DescriptorSetLayoutHandle; K_MAX_DESCRIPTOR_SET_LAYOUTS], // Assuming K_MAX_DESCRIPTOR_SET_LAYOUTS is defined
     viewport: Option<&'a ViewportState>, // Assuming ViewportState is defined
 
     num_active_layouts: u32,
-    name: Option<&'a str>,
+    name: Option<&'static str>,
 }
 
 impl<'a> PipelineCreation<'a> {
@@ -1020,7 +1046,7 @@ pub mod TextureFormat {
     }
 }
 
-pub struct ResourceData {
+pub(crate) struct ResourceData {
     pub data: Option<*mut std::ffi::c_void>, // Using Option for nullability
 }
 impl Default for ResourceData{
@@ -1036,7 +1062,7 @@ impl ResourceData {
 }
 
 
-pub struct ResourceBinding {
+pub(crate) struct ResourceBinding {
     pub ty: u16,    // ResourceType
     pub start: u16,
     pub count: u16,
@@ -1062,7 +1088,7 @@ impl ResourceBinding {
     }
 }
 
-pub struct ShaderStateDescription<'a> {
+pub(crate) struct ShaderStateDescription<'a> {
     pub native_handle: Option<*mut std::ffi::c_void>,
     pub name: Option<&'a str>,
 }
@@ -1076,7 +1102,7 @@ impl<'a> ShaderStateDescription<'a> {
     }
 }
 
-pub struct BufferDescription<'a> {
+pub(crate) struct BufferDescription<'a> {
     pub native_handle: Option<*mut std::ffi::c_void>, 
     pub name: Option<&'a str>,
 
@@ -1097,7 +1123,7 @@ impl<'a> BufferDescription<'a> {
             parent_handle: BufferHandle::default(), 
         }
     }
-}pub struct TextureDescription<'a> {
+}pub(crate) struct TextureDescription<'a> {
     pub native_handle: Option<*mut std::ffi::c_void>, // Using Option for nullability
     pub name: Option<&'a str>,
 
@@ -1130,7 +1156,7 @@ impl<'a> TextureDescription<'a> {
 }
 
 
-pub struct SamplerDescription<'a> {
+pub(crate) struct SamplerDescription<'a> {
     pub name: Option<&'a str>,
     pub min_filter: vk::Filter,
     pub mag_filter: vk::Filter,
@@ -1154,7 +1180,7 @@ impl<'a> Default for SamplerDescription<'a> {
     }
 }
 
-pub struct DescriptorSetLayoutDescription {
+pub(crate) struct DescriptorSetLayoutDescription {
     pub bindings: [ResourceBinding; K_MAX_DESCRIPTORS_PER_SET], // Assuming K_MAX_DESCRIPTORS_PER_SET is defined
     pub num_active_bindings: u32,
 }
@@ -1169,7 +1195,7 @@ impl Default for DescriptorSetLayoutDescription {
 }
 
 
-pub struct DescriptorSetDescription {
+pub(crate) struct DescriptorSetDescription {
     pub resources: [ResourceData; K_MAX_DESCRIPTORS_PER_SET], // Assuming K_MAX_DESCRIPTORS_PER_SET is defined
     pub num_active_resources: u32,
 }
@@ -1183,12 +1209,12 @@ impl Default for DescriptorSetDescription {
     }
 }
 
-pub struct PipelineDescription {
+pub(crate) struct PipelineDescription {
     pub shader: ShaderStateHandle, // Assuming ShaderStateHandle is defined
 }
 
 
-pub struct MapBufferParameters {
+pub(crate) struct MapBufferParameters {
     pub buffer: BufferHandle, // Assuming BufferHandle is defined
     pub offset: u32,
     pub size: u32,
@@ -1204,7 +1230,7 @@ impl Default for MapBufferParameters {
     }
 }
 
-pub struct ImageBarrier {
+pub(crate) struct ImageBarrier {
     pub texture: TextureHandle, // Assuming TextureHandle is defined
 }
 
@@ -1217,7 +1243,7 @@ impl Default for ImageBarrier {
 }
 
 
-pub struct MemoryBarrier {
+pub(crate) struct MemoryBarrier {
     pub buffer: BufferHandle, // Assuming BufferHandle is defined
 }
 
@@ -1229,7 +1255,7 @@ impl Default for MemoryBarrier {
     }
 }
 
-pub struct ExecutionBarrier {
+pub(crate) struct ExecutionBarrier {
     pub source_pipeline_stage: pipeline_stage::Enum, // Assuming PipelineStage::Enum is defined
     pub destination_pipeline_stage: pipeline_stage::Enum,
 
@@ -1246,8 +1272,8 @@ pub struct ExecutionBarrier {
 impl Default for ExecutionBarrier {
     fn default() -> Self {
         ExecutionBarrier {
-            source_pipeline_stage: pipeline_stage::Enum::default(), // Assuming PipelineStage::Enum has a default implementation
-            destination_pipeline_stage: pipeline_stage::Enum::default(),
+            source_pipeline_stage: pipeline_stage::Enum::DrawIndirect,
+            destination_pipeline_stage: pipeline_stage::Enum::DrawIndirect,
             new_barrier_experimental: u32::MAX,
             load_operation: 0,
             num_image_barriers: 0,
@@ -1262,6 +1288,8 @@ impl ExecutionBarrier {
     pub fn reset(&mut self) -> &mut Self {
         self.num_image_barriers = 0;
         self.num_memory_barriers = 0;
+        self.source_pipeline_stage = pipeline_stage::Enum::DrawIndirect;
+        self.destination_pipeline_stage = pipeline_stage::Enum::DrawIndirect;
         self
     }
 
@@ -1288,3 +1316,447 @@ impl ExecutionBarrier {
     }
 }
 
+pub(crate) struct ResourceUpdate {
+    pub ty: resource_deletion_type::Enum, // Assuming ResourceDeletionType::Enum is defined
+    pub handle: ResourceHandle, // Assuming ResourceHandle is defined
+    pub current_frame: u32,
+}
+
+pub(crate) struct DeviceStateVulkan {}
+
+
+pub(crate) struct Buffer {
+    pub vk_buffer: vk::Buffer,
+    pub vma_allocation: Option<vk_mem::Allocation>,
+    pub vk_device_memory: vk::DeviceMemory,
+    pub vk_device_size: vk::DeviceSize,
+    pub type_flags: vk::BufferUsageFlags,
+    pub usage: resource_usage_type::Enum, // Assuming ResourceUsageType is defined
+    pub size: u32,
+    pub global_offset: u32,
+    pub handle: BufferHandle, // Assuming BufferHandle is defined
+    pub parent_buffer: BufferHandle,
+    pub name: Option<String>,
+}
+
+impl Default for Buffer {
+    fn default() -> Self {
+        Buffer {
+            vk_buffer: vk::Buffer::null(),
+            vma_allocation: None, 
+            vk_device_memory: vk::DeviceMemory::null(),
+            vk_device_size: 0,
+            type_flags: vk::BufferUsageFlags::empty(),
+            usage: resource_usage_type::Enum::Immutable,
+            size: 0,
+            global_offset: 0,
+            handle: BufferHandle::default(),
+            parent_buffer: BufferHandle::default(),
+            name: None,
+        }
+    }
+}
+pub(crate) struct Sampler {
+    pub vk_sampler: vk::Sampler,
+    pub min_filter: vk::Filter,
+    pub mag_filter: vk::Filter,
+    pub mip_filter: vk::SamplerMipmapMode,
+    pub address_mode_u: vk::SamplerAddressMode,
+    pub address_mode_v: vk::SamplerAddressMode,
+    pub address_mode_w: vk::SamplerAddressMode,
+    pub name: Option<String>,
+}
+
+impl Default for Sampler {
+    fn default() -> Self {
+        Sampler {
+            vk_sampler: vk::Sampler::null(),
+            min_filter: vk::Filter::NEAREST,
+            mag_filter: vk::Filter::NEAREST,
+            mip_filter: vk::SamplerMipmapMode::NEAREST,
+            address_mode_u: vk::SamplerAddressMode::REPEAT,
+            address_mode_v: vk::SamplerAddressMode::REPEAT,
+            address_mode_w: vk::SamplerAddressMode::REPEAT,
+            name: None,
+        }
+    }
+}
+
+pub(crate) struct Texture {
+    pub vk_image: vk::Image,
+    pub vk_image_view: vk::ImageView,
+    pub vk_format: vk::Format,
+    pub vk_image_layout: vk::ImageLayout,
+    pub vma_allocation: Option<vk_mem::Allocation>,
+    pub width: u16,
+    pub height: u16,
+    pub depth: u16,
+    pub mipmaps: u8,
+    pub flags: u8,
+    pub handle: TextureHandle, // Assuming TextureHandle is defined
+    pub ty: texture_type::Enum, // Assuming TextureType is defined
+    pub sampler: Option<Box<Sampler>>, // Using Box to own the sampler
+    pub name: Option<String>,
+}
+
+impl Default for Texture {
+    fn default() -> Self {
+        Texture {
+            vk_image: vk::Image::null(),
+            vk_image_view: vk::ImageView::null(),
+            vk_format: vk::Format::UNDEFINED,
+            vk_image_layout: vk::ImageLayout::UNDEFINED,
+            vma_allocation: None,
+            width: 1,
+            height: 1,
+            depth: 1,
+            mipmaps: 1,
+            flags: 0,
+            handle: TextureHandle::default(),
+            ty: texture_type::Enum::Texture2D,
+            sampler: None,
+            name: None,
+        }
+    }
+}
+
+pub(crate) struct ShaderState<'a> {
+    pub shader_stage_info: [vk::PipelineShaderStageCreateInfo<'a>; K_MAX_SHADER_STAGES], 
+    pub name: Option<String>,
+    pub active_shaders: u32,
+    pub graphics_pipeline: bool,
+}
+
+impl<'a> Default for ShaderState<'a> {
+    fn default() -> Self {
+        ShaderState {
+            shader_stage_info: [vk::PipelineShaderStageCreateInfo::default(); K_MAX_SHADER_STAGES],
+            name: None,
+            active_shaders: 0,
+            graphics_pipeline: false,
+        }
+    }
+}
+
+pub(crate) struct DescriptorBinding {
+    pub ty: vk::DescriptorType,
+    pub start: u16,
+    pub count: u16,
+    pub set: u16,
+    pub name: Option<String>,
+}
+
+impl Default for DescriptorBinding {
+    fn default() -> Self {
+        DescriptorBinding {
+            ty: vk::DescriptorType::ACCELERATION_STRUCTURE_KHR,
+            start: 0,
+            count: 0,
+            set: 0,
+            name: None,
+        }
+    }
+}
+
+pub(crate) struct DescriptorSetLayout<'a>{
+    pub vk_descriptor_set_layout: vk::DescriptorSetLayout,
+    pub vk_binding: Option<Vec<vk::DescriptorSetLayoutBinding<'a>>>,
+    pub bindings: Option<Vec<DescriptorBinding>>,
+    pub num_bindings: u16,
+    pub set_index: u16,
+    pub handle: DescriptorSetLayoutHandle, // Assuming DescriptorSetLayoutHandle is defined
+}
+
+impl<'a> Default for DescriptorSetLayout<'a> {
+    fn default() -> Self {
+        DescriptorSetLayout {
+            vk_descriptor_set_layout: vk::DescriptorSetLayout::null(),
+            vk_binding: None,
+            bindings: None,
+            num_bindings: 0,
+            set_index: 0,
+            handle: DescriptorSetLayoutHandle::default(),
+        }
+    }
+}
+
+pub(crate) struct DescriptorSet<'a> {
+    pub vk_descriptor_set: vk::DescriptorSet,
+    pub resources: Option<Vec<ResourceHandle>>, // Assuming ResourceHandle is defined
+    pub samplers: Option<Vec<SamplerHandle>>, // Assuming SamplerHandle is defined
+    pub bindings: Option<Vec<u16>>,
+    pub layout: Option<Box<DescriptorSetLayout<'a>>>, // Using Box to own the layout
+    pub num_resources: u32,
+}
+
+impl<'a> Default for DescriptorSet<'a> {
+    fn default() -> Self {
+        DescriptorSet {
+            vk_descriptor_set: vk::DescriptorSet::null(),
+            resources: None,
+            samplers: None,
+            bindings: None,
+            layout: None,
+            num_resources: 0,
+        }
+    }
+}
+
+pub(crate) struct Pipeline<'a> {
+    pub vk_pipeline: vk::Pipeline,
+    pub vk_pipeline_layout: vk::PipelineLayout,
+    pub vk_bind_point: vk::PipelineBindPoint,
+    pub shader_state: ShaderStateHandle, // Assuming ShaderStateHandle is defined
+    pub descriptor_set_layout: [Option<Box<DescriptorSetLayout<'a>>>; K_MAX_DESCRIPTOR_SET_LAYOUTS], // Using Box to own the layout
+    pub descriptor_set_layout_handle: [DescriptorSetLayoutHandle; K_MAX_DESCRIPTOR_SET_LAYOUTS],
+    pub num_active_layouts: u32,
+    pub depth_stencil: DepthStencilCreation, // Assuming DepthStencilCreation is defined
+    pub blend_state: BlendStateCreation, // Assuming BlendStateCreation is defined
+    pub rasterization: RasterizationCreation, // Assuming RasterizationCreation is defined
+    pub handle: PipelineHandle, // Assuming PipelineHandle is defined
+    pub graphics_pipeline: bool,
+}
+
+impl<'a> Default for Pipeline<'a> {
+    fn default() -> Self {
+        Pipeline {
+            vk_pipeline: vk::Pipeline::null(),
+            vk_pipeline_layout: vk::PipelineLayout::null(),
+            vk_bind_point: vk::PipelineBindPoint::GRAPHICS, // Assuming GRAPHICS as default
+            shader_state: ShaderStateHandle::default(),
+            descriptor_set_layout: Default::default(), // Assuming default for array of Option<Box<DescriptorSetLayout>>
+            descriptor_set_layout_handle: [DescriptorSetLayoutHandle::default(); K_MAX_DESCRIPTOR_SET_LAYOUTS],
+            num_active_layouts: 0,
+            depth_stencil: DepthStencilCreation::default(),
+            blend_state: BlendStateCreation::default(),
+            rasterization: RasterizationCreation::default(),
+            handle: PipelineHandle::default(),
+            graphics_pipeline: true,
+        }
+    }
+}
+
+pub(crate) struct RenderPass {
+    pub vk_render_pass: vk::RenderPass,
+    pub vk_frame_buffer: vk::Framebuffer,
+    pub output: RenderPassOutput, // Assuming RenderPassOutput is defined
+    pub output_textures: [TextureHandle; K_MAX_IMAGE_OUTPUTS], // Assuming K_MAX_IMAGE_OUTPUTS is defined
+    pub output_depth: TextureHandle, // Assuming TextureHandle is defined
+    pub ty: render_pass_type::Enum, // Assuming RenderPassType is defined
+    pub scale_x: f32,
+    pub scale_y: f32,
+    pub width: u16,
+    pub height: u16,
+    pub dispatch_x: u16,
+    pub dispatch_y: u16,
+    pub dispatch_z: u16,
+    pub resize: u8,
+    pub num_render_targets: u8,
+    pub name: Option<String>,
+}
+
+impl Default for RenderPass {
+    fn default() -> Self {
+        RenderPass {
+            vk_render_pass: vk::RenderPass::null(),
+            vk_frame_buffer: vk::Framebuffer::null(),
+            output: RenderPassOutput::default(),
+            output_textures: [TextureHandle::default(); K_MAX_IMAGE_OUTPUTS],
+            output_depth: TextureHandle::default(),
+            ty: render_pass_type::Enum::Geometry,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            width: 0,
+            height: 0,
+            dispatch_x: 0,
+            dispatch_y: 0,
+            dispatch_z: 0,
+            resize: 0,
+            num_render_targets: 0,
+            name: None,
+        }
+    }
+}
+
+
+fn to_compiler_extension(value: vk::ShaderStageFlags) -> &'static str {
+    match value {
+        vk::ShaderStageFlags::VERTEX => "vert",
+        vk::ShaderStageFlags::FRAGMENT => "frag",
+        vk::ShaderStageFlags::COMPUTE => "comp",
+        _ => "",
+    }
+}
+
+fn to_stage_defines(value: vk::ShaderStageFlags) -> &'static str {
+    match value {
+        vk::ShaderStageFlags::VERTEX => "VERTEX",
+        vk::ShaderStageFlags::FRAGMENT => "FRAGMENT",
+        vk::ShaderStageFlags::COMPUTE => "COMPUTE",
+        _ => "",
+    }
+}
+
+fn to_vk_image_type(ty: texture_type::Enum) -> vk::ImageType {
+    match ty {
+        texture_type::Enum::Texture1D => vk::ImageType::TYPE_1D,
+        texture_type::Enum::Texture2D => vk::ImageType::TYPE_2D,
+        texture_type::Enum::Texture3D => vk::ImageType::TYPE_3D,
+        _ => todo!("Invalid image type")
+    }
+}
+
+fn to_vk_image_view_type(ty: texture_type::Enum) -> vk::ImageViewType {
+    match ty {
+        texture_type::Enum::Texture1D => vk::ImageViewType::TYPE_1D,
+        texture_type::Enum::Texture2D => vk::ImageViewType::TYPE_2D,
+        texture_type::Enum::Texture3D => vk::ImageViewType::TYPE_3D,
+        texture_type::Enum::Texture1DArray => vk::ImageViewType::TYPE_1D_ARRAY,
+        texture_type::Enum::Texture2DArray => vk::ImageViewType::TYPE_2D_ARRAY,
+        texture_type::Enum::TextureCubeArray => vk::ImageViewType::CUBE_ARRAY,
+        texture_type::Enum::Count => todo!("Invalid texture type"),
+    }
+}
+
+fn to_vk_vertex_format(value: vertex_component_format::Enum) -> vk::Format {
+    match value {
+        vertex_component_format::Enum::Float => vk::Format::R32_SFLOAT,
+        vertex_component_format::Enum::Float2 => vk::Format::R32G32_SFLOAT,
+        vertex_component_format::Enum::Float3 => vk::Format::R32G32B32_SFLOAT,
+        vertex_component_format::Enum::Float4 => vk::Format::R32G32B32A32_SFLOAT,
+        vertex_component_format::Enum::Mat4 => vk::Format::R32G32B32A32_SFLOAT, // Assuming Mat4 can be represented this way
+        vertex_component_format::Enum::Byte => vk::Format::R8_SINT,
+        vertex_component_format::Enum::Byte4N => vk::Format::R8G8B8A8_SNORM,
+        vertex_component_format::Enum::UByte => vk::Format::R8_UINT,
+        vertex_component_format::Enum::UByte4N => vk::Format::R8G8B8A8_UINT,
+        vertex_component_format::Enum::Short2 => vk::Format::R16G16_SINT,
+        vertex_component_format::Enum::Short2N => vk::Format::R16G16_SNORM,
+        vertex_component_format::Enum::Short4 => vk::Format::R16G16B16A16_SINT,
+        vertex_component_format::Enum::Short4N => vk::Format::R16G16B16A16_SNORM,
+        vertex_component_format::Enum::Uint => vk::Format::R32_UINT,
+        vertex_component_format::Enum::Uint2 => vk::Format::R32G32_UINT,
+        vertex_component_format::Enum::Uint4 => vk::Format::R32G32B32A32_UINT,
+        vertex_component_format::Enum::Count => panic!("Invalid vertex component format"),
+    }
+}
+
+fn to_vk_pipeline_stage(value: pipeline_stage::Enum) -> vk::PipelineStageFlags {
+    match value {
+        pipeline_stage::Enum::DrawIndirect => vk::PipelineStageFlags::DRAW_INDIRECT,
+        pipeline_stage::Enum::VertexInput => vk::PipelineStageFlags::VERTEX_INPUT,
+        pipeline_stage::Enum::VertexShader => vk::PipelineStageFlags::VERTEX_SHADER,
+        pipeline_stage::Enum::FragmentShader => vk::PipelineStageFlags::FRAGMENT_SHADER,
+        pipeline_stage::Enum::RenderTarget => vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+        pipeline_stage::Enum::ComputeShader => vk::PipelineStageFlags::COMPUTE_SHADER,
+        pipeline_stage::Enum::Transfer => vk::PipelineStageFlags::TRANSFER,
+    }
+}
+
+fn util_to_vk_access_flags(state: ResourceState) -> vk::AccessFlags {
+    let mut vk_access_flags = vk::AccessFlags::empty();
+    if state.contains(ResourceState::RESOURCE_STATE_COPY_SOURCE) {
+        vk_access_flags |= vk::AccessFlags::TRANSFER_READ;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_COPY_DEST) {
+        vk_access_flags |= vk::AccessFlags::TRANSFER_WRITE;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER) {
+        vk_access_flags |= vk::AccessFlags::UNIFORM_READ | vk::AccessFlags::VERTEX_ATTRIBUTE_READ;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_INDEX_BUFFER) {
+        vk_access_flags |= vk::AccessFlags::INDEX_READ;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_UNORDERED_ACCESS) {
+        vk_access_flags |= vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_INDIRECT_ARGUMENT) {
+        vk_access_flags |= vk::AccessFlags::INDIRECT_COMMAND_READ;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_RENDER_TARGET) {
+        vk_access_flags |= vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_DEPTH_WRITE) {
+        vk_access_flags |= vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_SHADER_RESOURCE) {
+        vk_access_flags |= vk::AccessFlags::SHADER_READ;
+    }
+    if state.contains(ResourceState::RESOURCE_STATE_PRESENT) {
+        vk_access_flags |= vk::AccessFlags::MEMORY_READ;
+    }
+    #[cfg(feature = "RAYTRACING")]
+    {
+        if state.contains(RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE) {
+            vk_access_flags |= vk::AccessFlags::ACCELERATION_STRUCTURE_READ_NV | vk::AccessFlags::ACCELERATION_STRUCTURE_WRITE_NV;
+        }
+    }
+    vk_access_flags
+}
+
+fn util_determine_pipeline_stage_flags(access_flags: vk::AccessFlags, queue_type: queue_type::Enum) -> vk::PipelineStageFlags {
+    let mut flags : vk::PipelineStageFlags = vk::PipelineStageFlags::empty();
+
+    match queue_type {
+        queue_type::Enum::Graphics => {
+            if access_flags.contains(vk::AccessFlags::INDEX_READ | vk::AccessFlags::VERTEX_ATTRIBUTE_READ){
+                flags |= vk::PipelineStageFlags::VERTEX_INPUT;
+    
+            }
+
+            if access_flags.contains(vk::AccessFlags::UNIFORM_READ | vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE){
+                flags |= vk::PipelineStageFlags::VERTEX_SHADER | vk::PipelineStageFlags::FRAGMENT_SHADER;
+                // Uncomment if additional shader stages are supported
+                // flags |= vk::PipelineStageFlags::GEOMETRY_SHADER;
+                // flags |= vk::PipelineStageFlags::TESSELLATION_CONTROL_SHADER | vk::PipelineStageFlags::TESSELLATION_EVALUATION_SHADER;
+                flags |= vk::PipelineStageFlags::COMPUTE_SHADER;
+                // Uncomment for ray tracing support
+                // flags |= vk::PipelineStageFlags::RAY_TRACING_SHADER_NV;
+            }
+
+            if access_flags.contains(vk::AccessFlags::INPUT_ATTACHMENT_READ) {
+                flags |= vk::PipelineStageFlags::FRAGMENT_SHADER;
+            }
+
+            if access_flags.contains(vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE) {
+                flags |= vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT;
+            }
+
+            if access_flags.contains(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE) {
+                flags |= vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS;
+            }
+        }
+        queue_type::Enum::Compute => {
+            if access_flags.contains(vk::AccessFlags::INDEX_READ | vk::AccessFlags::VERTEX_ATTRIBUTE_READ)||
+               access_flags.contains(vk::AccessFlags::INPUT_ATTACHMENT_READ) ||
+               access_flags.contains(vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE) ||
+               access_flags.contains(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE) {
+               return vk::PipelineStageFlags::ALL_COMMANDS;
+            }
+
+            if access_flags.contains(vk::AccessFlags::UNIFORM_READ | vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE) {
+                flags |= vk::PipelineStageFlags::COMPUTE_SHADER;
+            }
+        }
+        queue_type::Enum::CopyTransfer => return vk::PipelineStageFlags::ALL_COMMANDS,
+        _ => todo!("Unsupported queue type")
+    }
+
+    // Compatible with both compute and graphics queues
+    if access_flags.contains(vk::AccessFlags::INDIRECT_COMMAND_READ) {
+        flags |= vk::PipelineStageFlags::DRAW_INDIRECT;
+    }
+
+    if access_flags.contains(vk::AccessFlags::TRANSFER_READ | vk::AccessFlags::TRANSFER_WRITE) {
+        flags |= vk::PipelineStageFlags::TRANSFER;
+    }
+
+    if access_flags.contains(vk::AccessFlags::HOST_READ | vk::AccessFlags::HOST_WRITE) {
+        flags |= vk::PipelineStageFlags::HOST;
+    }
+
+    if flags.as_raw() == 0 {
+        flags = vk::PipelineStageFlags::TOP_OF_PIPE;
+    }
+
+    flags
+}
