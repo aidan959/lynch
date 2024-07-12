@@ -1,9 +1,11 @@
 use ash::vk;
+use crate::fundamental::Resource;
+
 use super::{color_write_enabled, fill_mode, pipeline_stage, queue_type, render_pass_operation, render_pass_type, resource_deletion_type, resource_usage_type, texture_type, vertex_component_format, vertex_input_rate, ResourceState};
 
-const K_INVALID_INDEX: u32 = 0xffffffff;
+const K_INVALID_INDEX: usize = 0xffffffff;
 
-pub(crate) type ResourceHandle = u32;
+pub(crate) type ResourceHandle = usize;
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct BufferHandle {
@@ -91,7 +93,7 @@ impl Default for PipelineHandle{
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct RenderPassHandle {
-    index: ResourceHandle,
+    pub(crate) index: ResourceHandle,
 }
 
 // Invalid handles
@@ -819,7 +821,7 @@ impl VertexInputCreation {
 }
 
 
-
+#[derive(Debug, Clone)]
 pub(crate) struct RenderPassOutput {
     color_formats: [vk::Format; K_MAX_IMAGE_OUTPUTS], 
     depth_stencil_format: vk::Format,

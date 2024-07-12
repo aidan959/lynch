@@ -1,3 +1,4 @@
+#![feature(allocator_api)]
 mod fundamental;
 mod graphics;
 use ash;

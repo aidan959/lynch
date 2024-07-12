@@ -1,14 +1,16 @@
+use std::{sync::Mutex, sync::Arc};
+
 use crate::graphics::{GpuDevice, RenderPass, Pipeline, BufferHandle, DescriptorSetHandle, ExecutionBarrier};
 use ash::vk;
 
-use super::{queue_type, RenderPassHandle, ResourceHandle};
-pub struct CommandBuffer<'a> {
+use super::{queue_type, PipelineHandle, RenderPassHandle, RenderPassOutput, ResourceHandle};
+pub struct CommandBuffer {
     vk_command_buffer: vk::CommandBuffer, 
-    device: &'a mut GpuDevice, 
+    device: Arc<Mutex<GpuDevice>>, 
     vk_descriptor_sets: [vk::DescriptorSet; 16], 
 
-    current_render_pass: Option<&'a mut RenderPass>, 
-    current_pipeline: Option<&'a mut Pipeline<'a>>, 
+    current_render_pass: Option<RenderPassHandle>, 
+    current_pipeline: Option<RenderPassHandle>, 
     clears: [vk::ClearValue; 2], 
 
     is_recording: bool,
@@ -22,8 +24,8 @@ pub struct CommandBuffer<'a> {
     baked: bool,
 }
 
-impl<'a> CommandBuffer<'a> {
-    pub fn new(device: &'a mut GpuDevice, handle: u32, buffer_size: u32, baked: bool) -> Self {
+impl CommandBuffer {
+    pub fn new(device: Arc<Mutex<GpuDevice>>, handle: u32, buffer_size: u32, baked: bool) -> Self {
         // Initialize Vulkan command buffer, descriptor sets, and other members
         CommandBuffer {
             vk_command_buffer: unsafe { std::mem::zeroed() }, 
@@ -48,11 +50,22 @@ impl<'a> CommandBuffer<'a> {
 
     pub fn bind_pass(&mut self, handle: RenderPassHandle) {
         self.is_recording = true;
-        self.current_render_pass = self.device.get_render_pass(handle);
-
+        {
+            let device = self.device.lock().unwrap();
+            if device.access_render_pass(handle).is_some() {
+                self.current_render_pass = Some(handle);
+            }
+        }
 
     }
-
+    pub fn get_current_render_pass_output(&self) -> Option<&RenderPassOutput> {
+        if let Some(index) = self.current_render_pass {
+            let device = self.device.lock().unwrap();
+            device.get_render_pass_output(RenderPassHandle { index })
+        } else {
+            None
+        }
+    }
     pub fn bind_pipeline(&mut self, handle: PipelineHandle) {
         // Implement bind_pipeline functionality
     }
